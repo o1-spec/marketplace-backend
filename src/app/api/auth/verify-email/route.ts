@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
+import { sendWelcomeEmail } from '@/lib/email'; 
 
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
 
-    const { email, code } = await request.json(); 
+    const { email, code } = await request.json();
 
-    if (!email || !code) { 
+    if (!email || !code) {
       return NextResponse.json(
         { error: 'Email and verification code are required' },
         { status: 400 }
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
     }
 
     const user = await User.findOne({
-      email: email, 
+      email: email,
       verificationCode: code,
       verificationCodeExpiry: { $gt: new Date() },
     });
@@ -39,6 +40,11 @@ export async function POST(request: NextRequest) {
     user.verificationCode = undefined;
     user.verificationCodeExpiry = undefined;
     await user.save();
+
+    const emailResult = await sendWelcomeEmail(user.email, user.name);
+    if (!emailResult.success) {
+      console.error('Failed to send welcome email:', emailResult.error);
+    }
 
     return NextResponse.json(
       {
