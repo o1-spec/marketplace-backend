@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
-import { sendWelcomeEmail } from '@/lib/email'; 
+import { sendWelcomeEmail } from '@/lib/email';
+import jwt from 'jsonwebtoken'; 
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,6 +47,12 @@ export async function POST(request: NextRequest) {
       console.error('Failed to send welcome email:', emailResult.error);
     }
 
+    const tempToken = jwt.sign(
+      { userId: user._id, temp: true },
+      process.env.JWT_SECRET!,
+      { expiresIn: '1h' } 
+    );
+
     return NextResponse.json(
       {
         message: 'Email verified successfully',
@@ -56,6 +63,7 @@ export async function POST(request: NextRequest) {
           emailVerified: user.emailVerified,
           avatar: user.avatar,
         },
+        tempToken, 
       },
       { status: 200 }
     );
