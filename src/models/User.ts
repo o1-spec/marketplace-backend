@@ -12,6 +12,9 @@ export interface IUser extends Document {
   resetToken?: string;
   resetTokenExpiry?: Date;
   createdAt: Date;
+  phoneNumber?: string;
+  location?: string; 
+  bio?: string; 
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
   generateResetToken(): string;
@@ -63,6 +66,19 @@ const UserSchema = new mongoose.Schema<IUser>(
     },
     verificationCodeExpiry: {
       type: Date,
+    },
+     phoneNumber: { 
+      type: String,
+      trim: true,
+    },
+    location: { 
+      type: String,
+      trim: true,
+    },
+    bio: { 
+      type: String,
+      trim: true,
+      maxlength: [150, "Bio cannot be more than 150 characters"],
     },
   },
   {
