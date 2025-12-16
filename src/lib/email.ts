@@ -176,3 +176,47 @@ export async function sendWelcomeEmail(to: string, name: string) {
     return { success: false, error };
   }
 }
+export async function sendProfileCompleteEmail(to: string, name: string) {
+  const mailOptions = {
+    from: FROM_EMAIL,
+    to,
+    subject: 'Your Marketplace Profile is Complete!',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #4ECDC4;">Profile Setup Complete! 🎉</h1>
+        <p>Hi ${name},</p>
+        <p>Great job! You've successfully completed your Marketplace profile. You're now ready to start buying and selling.</p>
+        
+        <div style="background-color: #f4f4f4; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #4ECDC4;">What's Next?</h3>
+          <ul>
+            <li>🔍 <strong>Browse Listings:</strong> Discover amazing products from local sellers</li>
+            <li>📦 <strong>Create Your First Listing:</strong> Start selling items you no longer need</li>
+            <li>💬 <strong>Connect:</strong> Message sellers and build your reputation</li>
+            <li>⭐ <strong>Rate & Review:</strong> Help others make informed decisions</li>
+          </ul>
+        </div>
+
+        <p><a href="https://yourmarketplace.com/browse" style="background-color: #4ECDC4; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Start Exploring</a></p>
+
+        <p>Happy trading!</p>
+        <p>Best regards,<br>The Marketplace Team</p>
+      </div>
+    `,
+  };
+
+  try {
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+      console.log('📧 Profile Complete Email (Development Mode)');
+      console.log('To:', to);
+      console.log('Subject: Your Marketplace Profile is Complete!');
+      return { success: true };
+    }
+
+    await transporter.sendMail(mailOptions);
+    return { success: true };
+  } catch (error) {
+    console.error('Error sending profile complete email:', error);
+    return { success: false, error };
+  }
+}

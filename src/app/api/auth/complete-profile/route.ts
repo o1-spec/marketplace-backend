@@ -1,16 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
-import connectDB from '@/lib/mongodb';
-import User from '@/models/User';
-import jwt from 'jsonwebtoken';
+import { NextRequest, NextResponse } from "next/server";
+import connectDB from "@/lib/mongodb";
+import User from "@/models/User";
+import jwt from "jsonwebtoken";
+import { sendProfileCompleteEmail } from "@/lib/email";
 
 export async function PUT(request: NextRequest) {
   try {
     await connectDB();
 
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const authHeader = request.headers.get("authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json(
-        { error: 'Authorization token required' },
+        { error: "Authorization token required" },
         { status: 401 }
       );
     }
@@ -19,41 +20,40 @@ export async function PUT(request: NextRequest) {
 
     let decoded;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
+      decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
+        userId: string;
+      };
     } catch (error) {
       return NextResponse.json(
-        { error: 'Invalid or expired token' },
+        { error: "Invalid or expired token" },
         { status: 401 }
       );
     }
 
     const user = await User.findById(decoded.userId);
     if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     const { phoneNumber, location, bio, avatar } = await request.json();
 
     if (phoneNumber && phoneNumber.length < 10) {
       return NextResponse.json(
-        { error: 'Phone number must be at least 10 digits' },
+        { error: "Phone number must be at least 10 digits" },
         { status: 400 }
       );
     }
 
     if (location && location.length < 3) {
       return NextResponse.json(
-        { error: 'Location must be at least 3 characters' },
+        { error: "Location must be at least 3 characters" },
         { status: 400 }
       );
     }
 
     if (bio && bio.length > 150) {
       return NextResponse.json(
-        { error: 'Bio cannot exceed 150 characters' },
+        { error: "Bio cannot exceed 150 characters" },
         { status: 400 }
       );
     }
@@ -64,9 +64,14 @@ export async function PUT(request: NextRequest) {
 
     await user.save();
 
+    const emailResult = await sendProfileCompleteEmail(user.email, user.name);
+    if (!emailResult.success) {
+      console.error("Failed to send completion email:", emailResult.error);
+    }
+
     return NextResponse.json(
       {
-        message: 'Profile updated successfully',
+        message: "Profile updated successfully",
         user: {
           _id: user._id,
           name: user.name,
@@ -81,9 +86,9 @@ export async function PUT(request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    console.error('Complete profile error:', error);
+    console.error("Complete profile error:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
