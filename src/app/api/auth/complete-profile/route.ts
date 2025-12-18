@@ -3,6 +3,7 @@ import connectDB from "@/lib/mongodb";
 import User from "@/models/User";
 import jwt from "jsonwebtoken";
 import { sendProfileCompleteEmail } from "@/lib/email";
+import Notification from "@/models/Notification";
 
 export async function PUT(request: NextRequest) {
   try {
@@ -62,13 +63,27 @@ export async function PUT(request: NextRequest) {
     if (bio !== undefined) user.bio = bio;
     if (avatar !== undefined) user.avatar = avatar;
 
+    const wasIncomplete =
+      !user.phoneNumber || !user.location || !user.bio || !user.avatar;
     await user.save();
 
-    const emailResult = await sendProfileCompleteEmail(user.email, user.name);
-    if (!emailResult.success) {
-      console.error("Failed to send completion email:", emailResult.error);
-    }
+    const isNowComplete =
+      user.phoneNumber && user.location && user.bio && user.avatar;
+    if (wasIncomplete && isNowComplete) {
+      const emailResult = await sendProfileCompleteEmail(user.email, user.name);
+      if (!emailResult.success) {
+        console.error("Failed to send completion email:", emailResult.error);
+      }
 
+      await Notification.create({
+        userId: user._id,
+        type: "system",
+        title: "Profile Completed!",
+        message:
+          "Your profile has been successfully completed. You can now start buying and selling!",
+        read: false,
+      });
+    }
     return NextResponse.json(
       {
         message: "Profile updated successfully",

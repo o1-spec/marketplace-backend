@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import { sendWelcomeEmail } from '@/lib/email';
-import jwt from 'jsonwebtoken'; 
+import jwt from 'jsonwebtoken';
+import Notification from '@/models/Notification';  // Added import
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,6 +42,15 @@ export async function POST(request: NextRequest) {
     user.verificationCode = undefined;
     user.verificationCodeExpiry = undefined;
     await user.save();
+
+    // ✅ CREATE VERIFICATION NOTIFICATION
+    await Notification.create({
+      userId: user._id,
+      type: 'system',
+      title: 'Email Verified!',
+      message: 'Your email has been successfully verified. Complete your profile to get started.',
+      read: false,
+    });
 
     const emailResult = await sendWelcomeEmail(user.email, user.name);
     if (!emailResult.success) {
