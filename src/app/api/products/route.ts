@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 
 // Type for populated product
-interface PopulatedProduct extends Omit<IProduct, 'sellerId'> {
+interface PopulatedProduct extends Omit<IProduct, "sellerId"> {
   sellerId: {
     _id: mongoose.Types.ObjectId;
     name: string;
@@ -18,25 +18,25 @@ export async function GET(request: NextRequest) {
     await connectDB();
 
     const url = new URL(request.url);
-    const page = parseInt(url.searchParams.get('page') || '1');
-    const limit = parseInt(url.searchParams.get('limit') || '20');
-    const category = url.searchParams.get('category');
-    const userId = url.searchParams.get('userId');
-    const status = url.searchParams.get('status') || 'active';
-    const search = url.searchParams.get('search');
-    const minPrice = url.searchParams.get('minPrice');
-    const maxPrice = url.searchParams.get('maxPrice');
-    const condition = url.searchParams.get('condition');
-    const location = url.searchParams.get('location');
-    const sortBy = url.searchParams.get('sortBy') || 'createdAt';
-    const sortOrder = url.searchParams.get('sortOrder') || 'desc';
-
+    const page = parseInt(url.searchParams.get("page") || "1");
+    const limit = parseInt(url.searchParams.get("limit") || "20");
+    const category = url.searchParams.get("category");
+    const userId = url.searchParams.get("userId");
+    const status = url.searchParams.get("status") || "active";
+    const search = url.searchParams.get("search");
+    const minPrice = url.searchParams.get("minPrice");
+    const maxPrice = url.searchParams.get("maxPrice");
+    const condition = url.searchParams.get("condition");
+    const location = url.searchParams.get("location");
+    const sortBy = url.searchParams.get("sortBy") || "createdAt";
+    const sortOrder = url.searchParams.get("sortOrder") || "desc";
+    const excludeId = url.searchParams.get("excludeId");
     let query: any = { status };
     if (category) query.category = category;
     if (userId) query.sellerId = userId;
     if (condition) query.condition = condition;
     if (location) {
-      query['location.city'] = new RegExp(location, 'i');
+      query["location.city"] = new RegExp(location, "i");
     }
     if (minPrice || maxPrice) {
       query.price = {};
@@ -46,26 +46,36 @@ export async function GET(request: NextRequest) {
     if (search) {
       query.$text = { $search: search };
     }
-
-    // Build sort object
+    if (excludeId) query._id = { $ne: new mongoose.Types.ObjectId(excludeId) };
     const sort: any = {};
-    sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+    sort[sortBy] = sortOrder === "desc" ? -1 : 1;
 
-    const products = await Product.find(query)
-      .populate<{ sellerId: { _id: mongoose.Types.ObjectId; name: string; avatar?: string } }>('sellerId', 'name avatar')
+    const products = (await Product.find(query)
+      .populate<{
+        sellerId: {
+          _id: mongoose.Types.ObjectId;
+          name: string;
+          avatar?: string;
+        };
+      }>("sellerId", "name avatar")
       .sort(sort)
       .limit(limit)
       .skip((page - 1) * limit)
-      .lean() as unknown as PopulatedProduct[];
+      .lean()) as unknown as PopulatedProduct[];
 
     const total = await Product.countDocuments(query);
 
     return NextResponse.json({
       products: products.map((product: PopulatedProduct) => {
         // Calculate discount manually
-        const discountPercentage = product.originalPrice && product.originalPrice > product.price
-          ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
-          : 0;
+        const discountPercentage =
+          product.originalPrice && product.originalPrice > product.price
+            ? Math.round(
+                ((product.originalPrice - product.price) /
+                  product.originalPrice) *
+                  100
+              )
+            : 0;
 
         return {
           id: product._id.toString(),
@@ -126,7 +136,6 @@ export async function POST(request: NextRequest) {
   try {
     await connectDB();
 
-    // Authenticate user
     const authHeader = request.headers.get("authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json(
@@ -163,15 +172,21 @@ export async function POST(request: NextRequest) {
       attributes,
     } = await request.json();
 
-    // Validation
-    if (!title || !description || !price || !category || !condition || !location?.city || !location?.state) {
+    if (
+      !title ||
+      !description ||
+      !price ||
+      !category ||
+      !condition ||
+      !location?.city ||
+      !location?.state
+    ) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    // Create product
     const product = await Product.create({
       title,
       description,
@@ -197,12 +212,12 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(
-      { 
-        message: "Product created successfully", 
+      {
+        message: "Product created successfully",
         product: {
           id: product._id.toString(),
           ...product.toObject(),
-        }
+        },
       },
       { status: 201 }
     );
