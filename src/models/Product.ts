@@ -1,32 +1,37 @@
 import mongoose, { Document, Model } from "mongoose";
 
-export type ProductCondition = 'new' | 'like_new' | 'good' | 'fair' | 'poor';
-export type ProductStatus = 'active' | 'sold' | 'inactive' | 'pending' | 'suspended';
+export type ProductCondition = "new" | "like_new" | "good" | "fair" | "poor";
+export type ProductStatus =
+  | "active"
+  | "sold"
+  | "inactive"
+  | "pending"
+  | "suspended";
 
 export interface IProduct extends Document {
   _id: mongoose.Types.ObjectId;
-  
+
   // Basic Information
   title: string;
   description: string;
   price: number;
   originalPrice?: number; // For discounts
-  
+
   // Categorization
   category: string;
   subcategory?: string;
-  
+
   // Product Details
   condition: ProductCondition;
   brand?: string;
   modelNumber?: string; // ✅ RENAMED FROM 'model'
   size?: string; // For clothing/shoes
   color?: string;
-  
+
   // Media
   images: string[]; // Array of Cloudinary URLs
   videoUrl?: string; // Optional video
-  
+
   // Location & Shipping
   location: {
     address: string;
@@ -42,32 +47,32 @@ export interface IProduct extends Document {
   shippingAvailable: boolean;
   shippingCost?: number;
   pickupOnly: boolean;
-  
+
   // Seller Information
   sellerId: mongoose.Types.ObjectId;
-  
+
   // Status & Visibility
   status: ProductStatus;
   isActive: boolean;
   isFeatured: boolean;
   isNegotiable: boolean;
-  
+
   // Analytics
   views: number;
   likes: number;
   shares: number;
   favorites: number;
-  
+
   // Marketplace Features
   tags: string[];
   attributes: Record<string, any>; // Flexible key-value pairs
-  
+
   // Timestamps
   createdAt: Date;
   updatedAt: Date;
   publishedAt?: Date;
   soldAt?: Date;
-  
+
   // Relationships (populated)
   seller?: any;
 }
@@ -114,7 +119,7 @@ const ProductSchema = new mongoose.Schema<IProduct>(
     // Product Details
     condition: {
       type: String,
-      enum: ['new', 'like_new', 'good', 'fair', 'poor'],
+      enum: ["new", "like_new", "good", "fair", "poor"],
       required: [true, "Please provide condition"],
       index: true,
     },
@@ -123,7 +128,8 @@ const ProductSchema = new mongoose.Schema<IProduct>(
       trim: true,
       index: true,
     },
-    modelNumber: { // ✅ RENAMED FROM 'model'
+    modelNumber: {
+      // ✅ RENAMED FROM 'model'
       type: String,
       trim: true,
     },
@@ -135,18 +141,16 @@ const ProductSchema = new mongoose.Schema<IProduct>(
       type: String,
       trim: true,
     },
-
-    // Media
-    images: [{
-      type: String,
-      trim: true,
+    images: {
+      type: [String],
+      required: true,
       validate: {
-        validator: function(v: string[]) {
-          return v.length <= 10; // Max 10 images
+        validator: function (v: string[]) {
+          return v.length <= 5;
         },
-        message: 'Cannot have more than 10 images'
-      }
-    }],
+        message: "Cannot have more than 5 images",
+      },
+    },
     videoUrl: {
       type: String,
       trim: true,
@@ -176,7 +180,7 @@ const ProductSchema = new mongoose.Schema<IProduct>(
       },
       country: {
         type: String,
-        default: 'USA',
+        default: "USA",
         trim: true,
       },
       coordinates: {
@@ -197,19 +201,17 @@ const ProductSchema = new mongoose.Schema<IProduct>(
       default: false,
     },
 
-    // Seller Information
     sellerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
       index: true,
     },
 
-    // Status & Visibility
     status: {
       type: String,
-      enum: ['active', 'sold', 'inactive', 'pending', 'suspended'],
-      default: 'active',
+      enum: ["active", "sold", "inactive", "pending", "suspended"],
+      default: "active",
       index: true,
     },
     isActive: {
@@ -247,11 +249,13 @@ const ProductSchema = new mongoose.Schema<IProduct>(
     },
 
     // Marketplace Features
-    tags: [{
-      type: String,
-      trim: true,
-      lowercase: true,
-    }],
+    tags: [
+      {
+        type: String,
+        trim: true,
+        lowercase: true,
+      },
+    ],
     attributes: {
       type: Map,
       of: mongoose.Schema.Types.Mixed,
@@ -272,17 +276,19 @@ const ProductSchema = new mongoose.Schema<IProduct>(
 );
 
 // Indexes for performance
-ProductSchema.index({ 'location.city': 1, 'location.state': 1 });
+ProductSchema.index({ "location.city": 1, "location.state": 1 });
 ProductSchema.index({ price: 1, status: 1 });
 ProductSchema.index({ createdAt: -1, status: 1 });
-ProductSchema.index({ title: 'text', description: 'text' });
+ProductSchema.index({ title: "text", description: "text" });
 ProductSchema.index({ tags: 1 });
 ProductSchema.index({ isFeatured: 1, createdAt: -1 });
 
 // Virtual for discount percentage
-ProductSchema.virtual('discountPercentage').get(function() {
+ProductSchema.virtual("discountPercentage").get(function () {
   if (this.originalPrice && this.originalPrice > this.price) {
-    return Math.round(((this.originalPrice - this.price) / this.originalPrice) * 100);
+    return Math.round(
+      ((this.originalPrice - this.price) / this.originalPrice) * 100
+    );
   }
   return 0;
 });
@@ -291,34 +297,35 @@ ProductSchema.virtual('discountPercentage').get(function() {
 // We'll handle status changes in the application logic instead
 
 // Instance methods
-ProductSchema.methods.incrementViews = function() {
+ProductSchema.methods.incrementViews = function () {
   this.views += 1;
   return this.save();
 };
 
-ProductSchema.methods.markAsSold = function() {
-  this.status = 'sold';
+ProductSchema.methods.markAsSold = function () {
+  this.status = "sold";
   this.soldAt = new Date();
   return this.save();
 };
 
 // Static methods
-ProductSchema.statics.findByCategory = function(category: string) {
-  return this.find({ category, status: 'active', isActive: true });
+ProductSchema.statics.findByCategory = function (category: string) {
+  return this.find({ category, status: "active", isActive: true });
 };
 
-ProductSchema.statics.findByLocation = function(city: string, state: string) {
+ProductSchema.statics.findByLocation = function (city: string, state: string) {
   return this.find({
-    'location.city': new RegExp(city, 'i'),
-    'location.state': new RegExp(state, 'i'),
-    status: 'active',
-    isActive: true
+    "location.city": new RegExp(city, "i"),
+    "location.state": new RegExp(state, "i"),
+    status: "active",
+    isActive: true,
   });
 };
 
-ProductSchema.statics.findFeatured = function() {
-  return this.find({ isFeatured: true, status: 'active', isActive: true })
-    .sort({ createdAt: -1 });
+ProductSchema.statics.findFeatured = function () {
+  return this.find({ isFeatured: true, status: "active", isActive: true }).sort(
+    { createdAt: -1 }
+  );
 };
 
 const Product: Model<IProduct> =
