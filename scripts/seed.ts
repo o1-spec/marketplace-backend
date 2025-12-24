@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import Product from '../src/models/Product.js';
 import User from '../src/models/User.js';
+import bcrypt from 'bcryptjs';
 
 dotenv.config({ path: '../.env' });
 console.log('MONGODB_URI:', process.env.MONGODB_URI);
@@ -641,31 +642,33 @@ const sampleListings = [
     }
   }
 ];
-
 async function seedDatabase() {
   try {
     console.log('🔄 Connecting to MongoDB...');
-    await mongoose.connect(MONGODB_URI);  // Use the hardcoded URI
+    await mongoose.connect(MONGODB_URI);
     console.log('✅ Connected to MongoDB');
 
-    let sampleUser = await User.findOne();
-    if (!sampleUser) {
-      console.log('📝 Creating sample user...');
-      sampleUser = new User({
-        name: "John Doe",
-        email: "john@example.com",
-        password: "password123",
+    let testUser = await User.findOne({ email: 'test@example.com' });
+    if (!testUser) {
+      console.log('📝 Creating default test user...');
+      testUser = new User({
+        name: "Test User",
+        email: "test@example.com",
+        password: await bcrypt.hash("password123", 10),
         location: "Lagos, Nigeria",
+        isVerified: true,
       });
-      await sampleUser.save();
-      console.log('✅ Sample user created');
+      await testUser.save();
+      console.log('✅ Default test user created');
+    } else {
+      console.log('📝 Using existing test user');
     }
 
-    console.log(`📝 Seeding ${sampleListings.length} listings for user: ${sampleUser.name}`);
+    console.log(`📝 Seeding ${sampleListings.length} listings for user: ${testUser.name}`);
 
     const listingsWithSeller = sampleListings.map(listing => ({
       ...listing,
-      sellerId: sampleUser._id
+      sellerId: testUser._id
     }));
 
     await Product.deleteMany({});
