@@ -135,3 +135,60 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    await connectDB();
+
+    const authHeader = request.headers.get("authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json(
+        { error: "Authorization token required" },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
+      userId: string;
+    };
+
+    const { searchParams } = new URL(request.url);
+    const reviewId = searchParams.get("reviewId");
+
+    if (!reviewId) {
+      return NextResponse.json(
+        { error: "reviewId parameter is required" },
+        { status: 400 }
+      );
+    }
+
+    // Find the review and check ownership
+    const review = await Review.findById(reviewId);
+    if (!review) {
+      return NextResponse.json(
+        { error: "Review not found" },
+        { status: 404 }
+      );
+    }
+
+    if (review.reviewer.toString() !== decoded.userId) {
+      return NextResponse.json(
+        { error: "You can only delete your own reviews" },
+        { status: 403 }
+      );
+    }
+
+    await Review.findByIdAndDelete(reviewId);
+
+    return NextResponse.json({
+      message: "Review deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete review error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
