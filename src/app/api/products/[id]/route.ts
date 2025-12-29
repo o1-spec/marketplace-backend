@@ -4,8 +4,8 @@ import Product, { IProduct } from "@/models/Product";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 
-interface PopulatedProduct extends Omit<IProduct, "seller"> {
-  seller: {
+interface PopulatedProduct extends Omit<IProduct, "sellerId"> {
+  sellerId: {
     _id: mongoose.Types.ObjectId;
     name: string;
     avatar?: string;
@@ -64,7 +64,14 @@ export async function GET(
         shippingAvailable: product.shippingAvailable,
         shippingCost: product.shippingCost,
         pickupOnly: product.pickupOnly,
-        sellerId: product.sellerId, 
+        seller: {
+          id: product.sellerId._id.toString(),
+          name: product.sellerId.name,
+          avatar: product.sellerId.avatar,
+          bio: product.sellerId.bio,
+          phoneNumber: product.sellerId.phoneNumber,
+          emailVerified: product.sellerId.emailVerified,
+        },
         status: product.status,
         isActive: product.isActive,
         isFeatured: product.isFeatured,

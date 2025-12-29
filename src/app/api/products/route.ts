@@ -10,6 +10,7 @@ interface PopulatedProduct extends Omit<IProduct, "sellerId"> {
     _id: mongoose.Types.ObjectId;
     name: string;
     avatar?: string;
+    phoneNumber?: string;
   };
 }
 
@@ -56,6 +57,7 @@ export async function GET(request: NextRequest) {
           _id: mongoose.Types.ObjectId;
           name: string;
           avatar?: string;
+          phoneNumber?: string;
         };
       }>("sellerId", "name avatar")
       .sort(sort)
@@ -100,6 +102,7 @@ export async function GET(request: NextRequest) {
           seller: {
             name: product.sellerId.name,
             avatar: product.sellerId.avatar,
+            phoneNumber: product.sellerId.phoneNumber,
           },
           status: product.status,
           isActive: product.isActive,
@@ -211,12 +214,63 @@ export async function POST(request: NextRequest) {
       attributes: attributes || {},
     });
 
+    // ✅ Populate seller details before returning
+    const populatedProduct = await Product.findById(product._id)
+      .populate("sellerId", "name avatar phoneNumber")
+      .lean();
+
+    // Calculate discount
+    const discountPercentage =
+      populatedProduct!.originalPrice && populatedProduct!.originalPrice > populatedProduct!.price
+        ? Math.round(
+            ((populatedProduct!.originalPrice - populatedProduct!.price) /
+              populatedProduct!.originalPrice) *
+              100
+          )
+        : 0;
+
     return NextResponse.json(
       {
         message: "Product created successfully",
         product: {
-          id: product._id.toString(),
-          ...product.toObject(),
+          id: populatedProduct!._id.toString(),
+          title: populatedProduct!.title,
+          description: populatedProduct!.description,
+          price: populatedProduct!.price,
+          originalPrice: populatedProduct!.originalPrice,
+          category: populatedProduct!.category,
+          subcategory: populatedProduct!.subcategory,
+          condition: populatedProduct!.condition,
+          brand: populatedProduct!.brand,
+          modelNumber: populatedProduct!.modelNumber,
+          size: populatedProduct!.size,
+          color: populatedProduct!.color,
+          images: populatedProduct!.images,
+          videoUrl: populatedProduct!.videoUrl,
+          location: populatedProduct!.location,
+          shippingAvailable: populatedProduct!.shippingAvailable,
+          shippingCost: populatedProduct!.shippingCost,
+          pickupOnly: populatedProduct!.pickupOnly,
+          sellerId: (populatedProduct!.sellerId as any)._id.toString(),
+          seller: {
+            name: (populatedProduct!.sellerId as any).name,
+            avatar: (populatedProduct!.sellerId as any).avatar,
+            phoneNumber: (populatedProduct!.sellerId as any).phoneNumber,
+          },
+          status: populatedProduct!.status,
+          isActive: populatedProduct!.isActive,
+          isFeatured: populatedProduct!.isFeatured,
+          isNegotiable: populatedProduct!.isNegotiable,
+          views: populatedProduct!.views,
+          likes: populatedProduct!.likes,
+          shares: populatedProduct!.shares,
+          favorites: populatedProduct!.favorites,
+          tags: populatedProduct!.tags,
+          attributes: populatedProduct!.attributes,
+          discountPercentage,
+          createdAt: populatedProduct!.createdAt,
+          updatedAt: populatedProduct!.updatedAt,
+          publishedAt: populatedProduct!.publishedAt,
         },
       },
       { status: 201 }
