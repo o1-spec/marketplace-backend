@@ -1,9 +1,8 @@
-// src/app/api/conversations/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
-import Conversation from "@/models/Conversation";
-import User from "@/models/User";
-import Product from "@/models/Product";
+import User from "@/models/User"; 
+import Product from "@/models/Product"; // ✅ Then Product (references User)
+import Conversation from "@/models/Conversation"; // ✅ Then Conversation (references Product)
 import Message from "@/models/Message";
 import jwt from "jsonwebtoken";
 import { isUserOnline } from "@/lib/socket";
@@ -38,9 +37,9 @@ export async function GET(request: NextRequest) {
           (p: any) => p.toString() !== decoded.userId
         );
 
-        const otherUser = await User.findById(otherParticipantId).select(
-          "name avatar"
-        );
+        const otherUser = otherParticipantId
+          ? await User.findById(otherParticipantId).select("name avatar")
+          : null;
 
         const unreadCount =
           conv.unreadCounts.find(
@@ -52,13 +51,13 @@ export async function GET(request: NextRequest) {
           userId: otherParticipantId,
           userName: otherUser?.name || "Unknown User",
           userAvatar: otherUser?.avatar || "",
-          productId: conv.productId._id,
-          productTitle: conv.productId.title,
-          productImage: conv.productId.images?.[0] || "",
-          lastMessage: conv.lastMessage?.content || "",
-          lastMessageTime: conv.lastMessage?.createdAt || conv.createdAt,
+          productId: (conv.productId as any)._id,
+          productTitle: (conv.productId as any).title,
+          productImage: (conv.productId as any).images?.[0] || "",
+          lastMessage: (conv.lastMessage as any)?.content || "",
+          lastMessageTime: (conv.lastMessage as any)?.createdAt || conv.createdAt,
           unreadCount,
-          isOnline: isUserOnline(otherParticipantId.toString()),
+          isOnline: otherParticipantId ? isUserOnline(otherParticipantId.toString()) : false,
         };
       })
     );
@@ -66,7 +65,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       conversations: formattedConversations.map((conv) => ({
         ...conv,
-        productImage: conv.productId.images?.[0] || "",
+        productImage: conv.productImage,
       })),
     });
   } catch (error) {
@@ -133,10 +132,10 @@ export async function POST(request: NextRequest) {
       conversation: {
         id: conversation._id,
         product: {
-          id: conversation.productId._id,
-          title: conversation.productId.title,
-          image: conversation.productId.images?.[0] || "",
-          price: conversation.productId.price,
+          id: (conversation.productId as any)._id,
+          title: (conversation.productId as any).title,
+          image: (conversation.productId as any).images?.[0] || "",
+          price: (conversation.productId as any).price,
         },
         user: {
           id: seller._id,

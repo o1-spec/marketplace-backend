@@ -3,43 +3,62 @@ import connectDB from "@/lib/mongodb";
 import Review from "@/models/Review";
 import Product from "@/models/Product";
 import jwt from "jsonwebtoken";
+import User from "@/models/User";
 
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
 
     const { searchParams } = new URL(request.url);
+    const sellerId = searchParams.get("sellerId");
+    const productId = searchParams.get("productId");
     const userId = searchParams.get("userId");
 
-    if (!userId) {
+    if (!sellerId && !productId && !userId) {
       return NextResponse.json(
-        { error: "userId parameter is required" },
+        { error: "sellerId, productId, or userId parameter is required" },
         { status: 400 }
       );
     }
 
-    // Get reviews for the user (as recipient)
-    const reviews = await Review.find({ recipient: userId })
-      .populate('reviewer', 'name avatar')
-      .populate('product', 'title images')
+    let query = {};
+    let populateFields = ['reviewer'];
+
+    if (sellerId) {
+      query = { recipient: sellerId };
+    } else if (productId) {
+      query = { product: productId };
+    } else if (userId) {
+      query = { 
+        $or: [
+          { recipient: userId }, 
+          { reviewer: userId }   
+        ]
+      };
+      populateFields.push('product'); 
+    }
+
+    const reviews = await Review.find(query)
+      .populate(populateFields.join(' '))
       .sort({ createdAt: -1 })
       .lean();
 
-    // Format reviews for frontend
     const formattedReviews = reviews.map(review => ({
       id: review._id.toString(),
       reviewer: {
-        name: review.reviewer.name,
-        avatar: review.reviewer.avatar || "",
+        name: review.reviewer?.name || 'Unknown',
+        avatar: review.reviewer?.avatar || "",
       },
       rating: review.rating,
       comment: review.comment,
       createdAt: review.createdAt,
-      product: {
-        id: review.product._id.toString(),
-        title: review.product.title,
-        image: review.product.images[0] || "",
-      },
+      ...(review.product && {
+        product: {
+          id: review.product._id.toString(),
+          title: review.product.title,
+          image: review.product.images?.[0] || "",
+        },
+      }),
     }));
 
     return NextResponse.json({
@@ -73,50 +92,89 @@ export async function POST(request: NextRequest) {
     };
 
     const body = await request.json();
-    const { productId, rating, comment, orderId } = body;
+    const { sellerId, productId, rating, comment, orderId } = body;
 
     // Validate required fields
-    if (!productId || !rating || !comment) {
+    if (!rating || !comment) {
       return NextResponse.json(
-        { error: "productId, rating, and comment are required" },
+        { error: "rating and comment are required" },
         { status: 400 }
       );
     }
 
-    // Check if product exists and get seller
-    const product = await Product.findById(productId);
-    if (!product) {
+    if (!sellerId && !productId) {
       return NextResponse.json(
-        { error: "Product not found" },
-        { status: 404 }
-      );
-    }
-
-    // Check if user already reviewed this product
-    const existingReview = await Review.findOne({
-      reviewer: decoded.userId,
-      product: productId,
-    });
-
-    if (existingReview) {
-      return NextResponse.json(
-        { error: "You have already reviewed this product" },
+        { error: "Either sellerId or productId is required" },
         { status: 400 }
       );
     }
 
-    // Create review
-    const review = new Review({
-      recipient: product.sellerId,
+    let reviewData: any = {
       reviewer: decoded.userId,
-      product: productId,
       rating,
       comment,
       orderId,
-      isVerified: !!orderId, // Verified if linked to an order
-    });
+      isVerified: !!orderId,
+    };
 
+    if (sellerId) {
+      // Seller review
+      reviewData.recipient = sellerId;
+      
+      // Check if user already reviewed this seller
+      const existingReview = await Review.findOne({
+        reviewer: decoded.userId,
+        recipient: sellerId,
+      });
+
+      if (existingReview) {
+        return NextResponse.json(
+          { error: "You have already reviewed this seller" },
+          { status: 400 }
+        );
+      }
+    } else if (productId) {
+      // Product review
+      reviewData.product = productId;
+      
+      // Check if product exists
+      const product = await Product.findById(productId);
+      if (!product) {
+        return NextResponse.json(
+          { error: "Product not found" },
+          { status: 404 }
+        );
+      }
+
+      // Check if user already reviewed this product
+      const existingReview = await Review.findOne({
+        reviewer: decoded.userId,
+        product: productId,
+      });
+
+      if (existingReview) {
+        return NextResponse.json(
+          { error: "You have already reviewed this product" },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Create review
+    const review = new Review(reviewData);
     await review.save();
+
+    // Update seller rating if it's a seller review
+    if (sellerId) {
+      const sellerReviews = await Review.find({ recipient: sellerId });
+      const averageRating = sellerReviews.reduce((sum, r) => sum + r.rating, 0) / sellerReviews.length;
+      
+      // Update User model with rating
+      await User.findByIdAndUpdate(sellerId, {
+        rating: averageRating,
+        totalReviews: sellerReviews.length,
+      });
+    }
 
     return NextResponse.json({
       message: "Review created successfully",

@@ -97,7 +97,6 @@ const ProductSchema = new mongoose.Schema<IProduct>(
       type: Number,
       required: [true, "Please provide a price"],
       min: [0, "Price cannot be negative"],
-      index: true,
     },
     originalPrice: {
       type: Number,
@@ -109,7 +108,6 @@ const ProductSchema = new mongoose.Schema<IProduct>(
       type: String,
       required: [true, "Please provide a category"],
       trim: true,
-      index: true,
     },
     subcategory: {
       type: String,
@@ -121,7 +119,6 @@ const ProductSchema = new mongoose.Schema<IProduct>(
       type: String,
       enum: ["new", "like_new", "good", "fair", "poor"],
       required: [true, "Please provide condition"],
-      index: true,
     },
     brand: {
       type: String,
@@ -166,13 +163,11 @@ const ProductSchema = new mongoose.Schema<IProduct>(
         type: String,
         required: [true, "Please provide city"],
         trim: true,
-        index: true,
       },
       state: {
         type: String,
         required: [true, "Please provide state"],
         trim: true,
-        index: true,
       },
       zipCode: {
         type: String,
@@ -205,24 +200,20 @@ const ProductSchema = new mongoose.Schema<IProduct>(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      index: true,
     },
 
     status: {
       type: String,
       enum: ["active", "sold", "inactive", "pending", "suspended"],
       default: "active",
-      index: true,
     },
     isActive: {
       type: Boolean,
       default: true,
-      index: true,
     },
     isFeatured: {
       type: Boolean,
       default: false,
-      index: true,
     },
     isNegotiable: {
       type: Boolean,
@@ -233,7 +224,6 @@ const ProductSchema = new mongoose.Schema<IProduct>(
     views: {
       type: Number,
       default: 0,
-      index: true,
     },
     likes: {
       type: Number,
@@ -276,6 +266,9 @@ const ProductSchema = new mongoose.Schema<IProduct>(
 );
 
 // Indexes for performance
+ProductSchema.index({ sellerId: 1 });
+
+// Keep other indexes
 ProductSchema.index({ "location.city": 1, "location.state": 1 });
 ProductSchema.index({ price: 1, status: 1 });
 ProductSchema.index({ createdAt: -1, status: 1 });
@@ -283,7 +276,6 @@ ProductSchema.index({ title: "text", description: "text" });
 ProductSchema.index({ tags: 1 });
 ProductSchema.index({ isFeatured: 1, createdAt: -1 });
 
-// Virtual for discount percentage
 ProductSchema.virtual("discountPercentage").get(function () {
   if (this.originalPrice && this.originalPrice > this.price) {
     return Math.round(

@@ -16,6 +16,9 @@ export interface IUser extends Document {
   location?: string; 
   bio?: string; 
   updatedAt: Date;
+  // Add seller rating fields
+  rating?: number;
+  totalReviews?: number;
   comparePassword(candidatePassword: string): Promise<boolean>;
   generateResetToken(): string;
   verificationCode?: string;
@@ -79,6 +82,17 @@ const UserSchema = new mongoose.Schema<IUser>(
       type: String,
       trim: true,
       maxlength: [150, "Bio cannot be more than 150 characters"],
+    },
+    rating: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5,
+    },
+    totalReviews: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
   },
   {
