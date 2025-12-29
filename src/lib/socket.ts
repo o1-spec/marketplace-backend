@@ -1,12 +1,17 @@
-const { Server } = require('socket.io');
-const jwt = require('jsonwebtoken');
-const connectDB = require('./mongodb'); // Fixed path
-const Conversation = require('../models/Conversation'); // Fixed path
-const Message = require('../models/Message'); // Fixed path
+import { Server as HTTPServer } from 'http';
+import { Server, Socket } from 'socket.io';
+import jwt from 'jsonwebtoken';
+import connectDB from './mongodb.js';  // Use .js extension for ES modules
+import Conversation from '../models/Conversation.js';  // Use .js extension
+import Message from '../models/Message.js';  // Use .js extension
 
-const onlineUsers = new Map();
+interface AuthenticatedSocket extends Socket {
+  userId?: string;
+}
 
-function initSocket(server) {
+const onlineUsers = new Map<string, string>();
+
+export function initSocket(server: HTTPServer) {
   const io = new Server(server, {
     cors: {
       origin: process.env.CLIENT_URL || "http://localhost:3000",
@@ -14,7 +19,7 @@ function initSocket(server) {
     }
   });
 
-  io.use(async (socket, next) => {
+  io.use(async (socket: AuthenticatedSocket, next) => {
     try {
       await connectDB();
       
@@ -24,7 +29,9 @@ function initSocket(server) {
         return next(new Error('Authentication error'));
       }
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
+        userId: string;
+      };
       socket.userId = decoded.userId;
       next();
     } catch (error) {
@@ -32,8 +39,8 @@ function initSocket(server) {
     }
   });
 
-  io.on('connection', (socket) => {
-    const userId = socket.userId;
+  io.on('connection', (socket: AuthenticatedSocket) => {
+    const userId = socket.userId!;
     
     onlineUsers.set(userId, socket.id);
     notifyUserStatus(userId, true);
@@ -60,12 +67,13 @@ function initSocket(server) {
           conversation.updatedAt = new Date();
           
           const otherParticipants = conversation.participants.filter(
-            (p) => p.toString() !== socket.userId
+            (p: any) => p.toString() !== socket.userId
           );
           
-          otherParticipants.forEach((participantId) => {
+          otherParticipants.forEach((participantId: any) => {
+            const participantIdStr = participantId.toString();
             const existingCount = conversation.unreadCounts.find(
-              (uc) => uc.userId.toString() === participantId
+              (uc: any) => uc.userId.toString() === participantIdStr
             );
             
             if (existingCount) {
@@ -86,19 +94,21 @@ function initSocket(server) {
         const fullConversation = await Conversation.findById(data.conversationId)
           .populate('participants');
         
-        fullConversation.participants.forEach((participant) => {
-          io.to(participant._id.toString()).emit('message', {
-            id: message._id,
-            text: message.content,
-            senderId: message.senderId,
-            timestamp: new Date().toLocaleTimeString('en-US', {
-              hour: 'numeric',
-              minute: '2-digit',
-            }),
-            isRead: false,
-            conversationId: data.conversationId
+        if (fullConversation && Array.isArray(fullConversation.participants)) {
+          fullConversation.participants.forEach((participant: any) => {
+            io.to(participant._id.toString()).emit('message', {
+              id: message._id,
+              text: message.content,
+              senderId: message.senderId,
+              timestamp: new Date().toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+              }),
+              isRead: false,
+              conversationId: data.conversationId
+            });
           });
-        });
+        }
       } catch (error) {
         console.error('Send message error:', error);
         socket.emit('error', { message: 'Failed to send message' });
@@ -130,20 +140,19 @@ function initSocket(server) {
         );
 
         const unreadCountIndex = conversation.unreadCounts.findIndex(
-          (uc) => uc.userId.toString() === socket.userId
+          (uc: any) => uc.userId.toString() === socket.userId
         );
 
         if (unreadCountIndex !== -1) {
           conversation.unreadCounts[unreadCountIndex].count = 0;
           await conversation.save();
         }
-
         const otherParticipants = conversation.participants.filter(
-          (p) => p.toString() !== socket.userId
+          (p: any) => p.toString() !== socket.userId
         );
 
-        otherParticipants.forEach((participantId) => {
-          io.to(participantId).emit('messagesRead', {
+        otherParticipants.forEach((participantId: any) => {
+          io.to(participantId.toString()).emit('messagesRead', {
             conversationId: data.conversationId,
             userId: socket.userId
           });
@@ -153,11 +162,11 @@ function initSocket(server) {
       }
     });
 
-    socket.on('joinConversation', (conversationId) => {
+    socket.on('joinConversation', (conversationId: string) => {
       socket.join(conversationId);
     });
 
-    socket.on('leaveConversation', (conversationId) => {
+    socket.on('leaveConversation', (conversationId: string) => {
       socket.leave(conversationId);
     });
 
@@ -168,15 +177,15 @@ function initSocket(server) {
     });
   });
 
-  async function notifyUserStatus(userId, isOnline) {
+  async function notifyUserStatus(userId: string, isOnline: boolean) {
     try {
       const conversations = await Conversation.find({
         participants: userId
       });
 
-      const contactIds = new Set();
+      const contactIds = new Set<string>();
       conversations.forEach(conv => {
-        conv.participants.forEach((participant) => {
+        conv.participants.forEach((participant: any) => {
           if (participant.toString() !== userId) {
             contactIds.add(participant.toString());
           }
@@ -197,8 +206,6 @@ function initSocket(server) {
   return io;
 }
 
-function isUserOnline(userId) {
+export function isUserOnline(userId: string) {
   return onlineUsers.has(userId);
 }
-
-module.exports = { initSocket, isUserOnline };
