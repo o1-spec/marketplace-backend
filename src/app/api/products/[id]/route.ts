@@ -17,17 +17,17 @@ interface PopulatedProduct extends Omit<IProduct, "sellerId"> {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }  // params is now a Promise
 ) {
   try {
     await connectDB();
 
-    const { id } = await params;
+    const { id } = await params;  // Await params
 
- const product = await Product.findById(id)
-  .setOptions({ strictPopulate: false })
-  .populate('sellerId', 'name avatar bio phoneNumber emailVerified') 
-  .lean() as PopulatedProduct | null;
+    const product = await Product.findById(id)
+      .setOptions({ strictPopulate: false })
+      .populate('sellerId', 'name avatar bio phoneNumber emailVerified') 
+      .lean() as PopulatedProduct | null;
 
     if (!product) {
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
@@ -99,7 +99,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }  // params is now a Promise
 ) {
   try {
     await connectDB();
@@ -118,12 +118,12 @@ export async function PUT(
       userId: string;
     };
 
-    const { id } = await params;
+    const { id } = await params;  // Await params
 
     const product = await Product.findOne({
-  _id: id,
-  sellerId: decoded.userId, 
-});
+      _id: id,
+      sellerId: decoded.userId, 
+    });
 
     if (!product) {
       return NextResponse.json(
@@ -155,7 +155,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }  // params is now a Promise
 ) {
   try {
     await connectDB();
@@ -173,7 +173,7 @@ export async function DELETE(
       userId: string;
     };
 
-    const { id } = await params;
+    const { id } = await params;  // Await params
 
     const product = await Product.findOneAndDelete({
       _id: id,

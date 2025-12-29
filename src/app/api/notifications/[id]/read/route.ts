@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }  
 ) {
   try {
     await connectDB();
@@ -23,8 +23,10 @@ export async function PUT(
       userId: string;
     };
 
+    const { id } = await params;  
+
     const notification = await Notification.findOneAndUpdate(
-      { _id: params.id, userId: decoded.userId },
+      { _id: id, userId: decoded.userId }, 
       { read: true },
       { new: true }
     );

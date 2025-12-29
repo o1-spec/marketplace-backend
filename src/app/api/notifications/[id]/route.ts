@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }  
 ) {
   try {
     await connectDB();
@@ -23,8 +23,10 @@ export async function DELETE(
       userId: string;
     };
 
+    const { id } = await params; 
+
     const notification = await Notification.findOneAndDelete({
-      _id: params.id,
+      _id: id,  
       userId: decoded.userId,
     });
 

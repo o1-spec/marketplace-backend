@@ -69,8 +69,9 @@ export async function POST(
     );
 
     if ((global as any).io) {
-      otherParticipants.forEach((participantId: string) => {
-        (global as any).io.to(participantId).emit('messagesRead', {
+      otherParticipants.forEach((participantId: any) => {
+        const participantSocketId = participantId.toString();
+        (global as any).io.to(participantSocketId).emit('messagesRead', {
           conversationId,
           userId: decoded.userId
         });

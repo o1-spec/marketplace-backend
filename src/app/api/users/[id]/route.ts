@@ -6,12 +6,12 @@ import Review from "@/models/Review";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }  
 ) {
   try {
     await connectDB();
 
-    const { id } = await params;
+    const { id } = await params;  
 
     const user = await User.findById(id).select('-password');
     if (!user) {

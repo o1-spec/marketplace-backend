@@ -44,18 +44,25 @@ export async function GET(
     }
 
     // Get the other participant
-    const otherParticipant = conversation.participants.find(
+    const otherParticipant = (conversation.participants as any[]).find(
       (p: any) => p._id.toString() !== decoded.userId
     );
+
+    if (!otherParticipant) {
+      return NextResponse.json(
+        { error: "Other participant not found" },
+        { status: 404 }
+      );
+    }
 
     return NextResponse.json({
       conversation: {
         id: conversation._id,
         product: {
-          id: conversation.productId._id,
-          title: conversation.productId.title,
-          image: conversation.productId.images?.[0] || "",
-          price: conversation.productId.price,
+          id: (conversation.productId as any)._id,
+          title: (conversation.productId as any).title,
+          image: (conversation.productId as any).images?.[0] || "",
+          price: (conversation.productId as any).price,
         },
         user: {
           id: otherParticipant._id,
