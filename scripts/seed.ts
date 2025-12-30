@@ -5,7 +5,7 @@ import User from '../src/models/User.js';
 import bcrypt from 'bcryptjs';
 
 dotenv.config({ path: '../.env' });
-console.log('MONGODB_URI:', process.env.MONGODB_URI);
+// console.log('MONGODB_URI:', process.env.MONGODB_URI);
 
 // Temporarily hardcode the URI for testing
 const MONGODB_URI = 'mongodb+srv://oluwafemionadokun:CMBxbucHwAfkYZAG@cluster0.xpileiu.mongodb.net/marketplace';

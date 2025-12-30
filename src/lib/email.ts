@@ -21,13 +21,13 @@ export async function sendEmail({ to, subject, html }: { to: string; subject: st
     html,
   };
 
-  console.log("📧 Email Configuration:", {
-    EMAIL_USER: process.env.EMAIL_USER ? 'Set' : 'Not Set',
-    EMAIL_PASSWORD: process.env.EMAIL_PASSWORD ? 'Set' : 'Not Set',
-    EMAIL_FROM: process.env.EMAIL_FROM,
-    EMAIL_HOST: process.env.EMAIL_HOST,
-    EMAIL_PORT: process.env.EMAIL_PORT,
-  });
+  // console.log("📧 Email Configuration:", {
+  //   EMAIL_USER: process.env.EMAIL_USER ? 'Set' : 'Not Set',
+  //   EMAIL_PASSWORD: process.env.EMAIL_PASSWORD ? 'Set' : 'Not Set',
+  //   EMAIL_FROM: process.env.EMAIL_FROM,
+  //   EMAIL_HOST: process.env.EMAIL_HOST,
+  //   EMAIL_PORT: process.env.EMAIL_PORT,
+  // });
 
   try {
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
