@@ -4,8 +4,8 @@ import connectDB from "@/lib/mongodb";
 import User from "@/models/User";
 import Product from "@/models/Product";
 import jwt from "jsonwebtoken";
-import { isUserOnline } from "@/lib/socket";
 import Conversation from "@/models/Conversation";
+import { isUserOnline } from "@/lib/onlineUsers";
 
 export async function GET(
   request: NextRequest,

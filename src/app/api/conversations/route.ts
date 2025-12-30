@@ -5,7 +5,7 @@ import Product from "@/models/Product"; // ✅ Then Product (references User)
 import Conversation from "@/models/Conversation"; // ✅ Then Conversation (references Product)
 import Message from "@/models/Message";
 import jwt from "jsonwebtoken";
-import { isUserOnline } from "@/lib/socket";
+import { isUserOnline } from "@/lib/onlineUsers"; // Import from separate file  
 
 export async function GET(request: NextRequest) {
   try {
