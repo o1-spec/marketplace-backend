@@ -100,8 +100,6 @@ const UserSchema = new mongoose.Schema<IUser>(
   }
 );
 
-UserSchema.index({ email: 1 });
-
 UserSchema.pre("save", async function () {
   if (!this.isModified("password")) return;
 
