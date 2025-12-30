@@ -1,11 +1,12 @@
+// src/app/api/conversations/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import User from "@/models/User"; 
-import Product from "@/models/Product"; // ✅ Then Product (references User)
-import Conversation from "@/models/Conversation"; // ✅ Then Conversation (references Product)
+import Product from "@/models/Product";
+import Conversation from "@/models/Conversation";
 import Message from "@/models/Message";
 import jwt from "jsonwebtoken";
-import { isUserOnline } from "@/lib/onlineUsers"; // Import from separate file  
+import { isUserOnline } from "@/lib/onlineUsers";
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,7 +29,6 @@ export async function GET(request: NextRequest) {
       participants: decoded.userId,
     })
       .populate("productId", "title images price")
-      .populate("lastMessage")
       .sort({ updatedAt: -1 });
 
     const formattedConversations = await Promise.all(
@@ -40,6 +40,22 @@ export async function GET(request: NextRequest) {
         const otherUser = otherParticipantId
           ? await User.findById(otherParticipantId).select("name avatar")
           : null;
+
+        // Get last message content if it exists
+        let lastMessageContent = "";
+        let lastMessageTime = conv.createdAt;
+
+        if (conv.lastMessage) {
+          try {
+            const lastMsg = await Message.findById(conv.lastMessage);
+            if (lastMsg) {
+              lastMessageContent = lastMsg.content;
+              lastMessageTime = lastMsg.createdAt;
+            }
+          } catch (error) {
+            console.error("Error fetching last message:", error);
+          }
+        }
 
         const unreadCount =
           conv.unreadCounts.find(
@@ -54,8 +70,8 @@ export async function GET(request: NextRequest) {
           productId: (conv.productId as any)._id,
           productTitle: (conv.productId as any).title,
           productImage: (conv.productId as any).images?.[0] || "",
-          lastMessage: (conv.lastMessage as any)?.content || "",
-          lastMessageTime: (conv.lastMessage as any)?.createdAt || conv.createdAt,
+          lastMessage: lastMessageContent,
+          lastMessageTime,
           unreadCount,
           isOnline: otherParticipantId ? isUserOnline(otherParticipantId.toString()) : false,
         };
