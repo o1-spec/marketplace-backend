@@ -10,7 +10,10 @@ export async function GET(request: NextRequest) {
     await connectDB();
 
     const authHeader = request.headers.get("authorization");
+    console.log("🔍 [Profile] Auth header:", authHeader ? "Present" : "Missing");
+    
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      console.log("❌ [Profile] Invalid auth header format");
       return NextResponse.json(
         { error: "Authorization token required" },
         { status: 401 }
@@ -18,14 +21,35 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
-      userId: string;
-    };
+    console.log("🔑 [Profile] Token preview:", token.substring(0, 30) + "...");
+    console.log("🔐 [Profile] JWT_SECRET present:", !!process.env.JWT_SECRET);
+    
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
+        userId: string;
+        email?: string;
+        temp?: boolean;
+      };
+      console.log("✅ [Profile] Token verified successfully");
+      console.log("👤 [Profile] User ID:", decoded.userId);
+      console.log("📧 [Profile] Email:", decoded.email);
+      console.log("⏰ [Profile] Temp flag:", decoded.temp);
+    } catch (error: any) {
+      console.error("❌ [Profile] Token verification failed:", error.message);
+      return NextResponse.json(
+        { error: "Invalid or expired token" },
+        { status: 401 }
+      );
+    }
 
     const user = await User.findById(decoded.userId).select("-password");
     if (!user) {
+      console.error("❌ [Profile] User not found:", decoded.userId);
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+
+    console.log("✅ [Profile] User found:", user.email);
 
     // Get stats
     const totalListings = await Product.countDocuments({
@@ -51,6 +75,8 @@ export async function GET(request: NextRequest) {
       rating: Math.round(averageRating * 10) / 10,
     };
 
+    console.log("✅ [Profile] Returning profile data");
+
     return NextResponse.json({
       user: {
         _id: user._id.toString(),
@@ -65,8 +91,9 @@ export async function GET(request: NextRequest) {
         ...stats,
       },
     });
-  } catch (error) {
-    console.error("Get user profile error:", error);
+  } catch (error: any) {
+    console.error("❌ [Profile] Get user profile error:", error.message);
+    console.error("Stack:", error.stack);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
