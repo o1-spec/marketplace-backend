@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import connectDB from '@/lib/mongodb';
 import Favorite from '@/models/Favorite';
 import Product from '@/models/Product';
+import User from "@/models/User";  
 
 export async function GET(request: NextRequest) {
   try {

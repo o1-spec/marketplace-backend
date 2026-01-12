@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Product, { IProduct } from "@/models/Product";
+import User from "@/models/User";  
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
-import User from "@/models/User";  
 
 // Type for populated product
 interface PopulatedProduct extends Omit<IProduct, "sellerId"> {
