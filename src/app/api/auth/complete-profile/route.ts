@@ -88,10 +88,16 @@ export async function PUT(request: NextRequest) {
       });
     }
 
+    console.log("🔐 JWT_SECRET present:", !!process.env.JWT_SECRET);
+    console.log(
+      "🔐 JWT_SECRET preview:",
+      process.env.JWT_SECRET?.substring(0, 10) + "..."
+    );
+
     const newToken = jwt.sign(
-      { 
-        userId: user._id.toString(), 
-        email: user.email 
+      {
+        userId: user._id.toString(),
+        email: user.email,
       },
       process.env.JWT_SECRET!,
       { expiresIn: "7d" }
