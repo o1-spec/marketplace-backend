@@ -35,6 +35,11 @@ export async function GET(request: NextRequest) {
       console.log("👤 [Profile] User ID:", decoded.userId);
       console.log("📧 [Profile] Email:", decoded.email);
       console.log("⏰ [Profile] Temp flag:", decoded.temp);
+      
+      // ✅ Temp tokens are allowed for viewing own profile
+      if (decoded.temp) {
+        console.log("ℹ️ [Profile] Using temporary token (profile incomplete)");
+      }
     } catch (error: any) {
       console.error("❌ [Profile] Token verification failed:", error.message);
       return NextResponse.json(
@@ -60,12 +65,17 @@ export async function GET(request: NextRequest) {
       sellerId: decoded.userId,
       status: "sold",
     });
-    const totalReviews = await Review.countDocuments({ recipient: decoded.userId });
+    const totalReviews = await Review.countDocuments({
+      recipient: decoded.userId,
+    });
 
-    const reviews = await Review.find({ recipient: decoded.userId }).select("rating");
+    const reviews = await Review.find({ recipient: decoded.userId }).select(
+      "rating"
+    );
     const averageRating =
       totalReviews > 0
-        ? reviews.reduce((sum, review) => sum + review.rating, 0) / totalReviews
+        ? reviews.reduce((sum, review) => sum + review.rating, 0) /
+          totalReviews
         : 0;
 
     const stats = {
@@ -116,11 +126,16 @@ export async function PUT(request: NextRequest) {
     const token = authHeader.substring(7);
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
       userId: string;
+      temp?: boolean;
     };
+
+    // ✅ Allow temp tokens for profile updates
+    if (decoded.temp) {
+      console.log("ℹ️ [Profile] Temporary token updating profile");
+    }
 
     const { avatar, bio, location, phoneNumber } = await request.json();
 
-    // Validate input
     if (bio && bio.length > 500) {
       return NextResponse.json(
         { error: "Bio must be less than 500 characters" },
@@ -141,11 +156,10 @@ export async function PUT(request: NextRequest) {
     if (location !== undefined) updateData.location = location;
     if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
 
-    const user = await User.findByIdAndUpdate(
-      decoded.userId,
-      updateData,
-      { new: true, runValidators: true }
-    ).select("-password");
+    const user = await User.findByIdAndUpdate(decoded.userId, updateData, {
+      new: true,
+      runValidators: true,
+    }).select("-password");
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });

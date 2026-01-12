@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Product, { IProduct } from "@/models/Product";
-import User from "@/models/User";  
+import User from "@/models/User";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 
-// Type for populated product
 interface PopulatedProduct extends Omit<IProduct, "sellerId"> {
   sellerId: {
     _id: mongoose.Types.ObjectId;
@@ -19,11 +18,30 @@ export async function GET(request: NextRequest) {
   try {
     await connectDB();
 
+    // ✅ Auth is optional for GET requests (public browsing)
+    const authHeader = request.headers.get("authorization");
+    let userId: string | undefined;
+
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.substring(7);
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
+          userId: string;
+          temp?: boolean;
+        };
+        userId = decoded.userId;
+        console.log("✅ [Products] Authenticated request, temp:", decoded.temp);
+        // ✅ Temp tokens are OK for viewing products
+      } catch (error) {
+        console.log("⚠️ [Products] Invalid token, proceeding as guest");
+      }
+    }
+
     const url = new URL(request.url);
     const page = parseInt(url.searchParams.get("page") || "1");
     const limit = parseInt(url.searchParams.get("limit") || "20");
     const category = url.searchParams.get("category");
-    const userId = url.searchParams.get("userId");
+    const userIdParam = url.searchParams.get("userId");
     const status = url.searchParams.get("status") || "active";
     const search = url.searchParams.get("search");
     const minPrice = url.searchParams.get("minPrice");
@@ -33,9 +51,10 @@ export async function GET(request: NextRequest) {
     const sortBy = url.searchParams.get("sortBy") || "createdAt";
     const sortOrder = url.searchParams.get("sortOrder") || "desc";
     const excludeId = url.searchParams.get("excludeId");
+
     let query: any = { status };
     if (category) query.category = category;
-    if (userId) query.sellerId = userId;
+    if (userIdParam) query.sellerId = userIdParam;
     if (condition) query.condition = condition;
     if (location) {
       query["location.city"] = new RegExp(location, "i");
@@ -48,7 +67,9 @@ export async function GET(request: NextRequest) {
     if (search) {
       query.$text = { $search: search };
     }
-    if (excludeId) query._id = { $ne: new mongoose.Types.ObjectId(excludeId) };
+    if (excludeId)
+      query._id = { $ne: new mongoose.Types.ObjectId(excludeId) };
+
     const sort: any = {};
     sort[sortBy] = sortOrder === "desc" ? -1 : 1;
 
@@ -70,7 +91,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       products: products.map((product: PopulatedProduct) => {
-        // Calculate discount manually
         const discountPercentage =
           product.originalPrice && product.originalPrice > product.price
             ? Math.round(
@@ -151,7 +171,19 @@ export async function POST(request: NextRequest) {
     const token = authHeader.substring(7);
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
       userId: string;
+      temp?: boolean;
     };
+
+    // ✅ Require complete profile for posting products
+    if (decoded.temp) {
+      return NextResponse.json(
+        {
+          error: "Please complete your profile before posting products",
+          requiresProfile: true,
+        },
+        { status: 403 }
+      );
+    }
 
     const {
       title,
@@ -215,14 +247,13 @@ export async function POST(request: NextRequest) {
       attributes: attributes || {},
     });
 
-    // ✅ Populate seller details before returning
     const populatedProduct = await Product.findById(product._id)
       .populate("sellerId", "name avatar phoneNumber")
       .lean();
 
-    // Calculate discount
     const discountPercentage =
-      populatedProduct!.originalPrice && populatedProduct!.originalPrice > populatedProduct!.price
+      populatedProduct!.originalPrice &&
+      populatedProduct!.originalPrice > populatedProduct!.price
         ? Math.round(
             ((populatedProduct!.originalPrice - populatedProduct!.price) /
               populatedProduct!.originalPrice) *
