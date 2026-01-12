@@ -1,3 +1,4 @@
+// src/app/api/auth/complete-profile/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import User from "@/models/User";
@@ -23,6 +24,7 @@ export async function PUT(request: NextRequest) {
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
         userId: string;
+        temp?: boolean;
       };
     } catch (error) {
       return NextResponse.json(
@@ -58,6 +60,7 @@ export async function PUT(request: NextRequest) {
         { status: 400 }
       );
     }
+
     if (phoneNumber !== undefined) user.phoneNumber = phoneNumber;
     if (location !== undefined) user.location = location;
     if (bio !== undefined) user.bio = bio;
@@ -84,9 +87,22 @@ export async function PUT(request: NextRequest) {
         read: false,
       });
     }
+
+    const newToken = jwt.sign(
+      { 
+        userId: user._id.toString(), 
+        email: user.email 
+      },
+      process.env.JWT_SECRET!,
+      { expiresIn: "7d" }
+    );
+
+    console.log("✅ Generated new permanent token for user:", user.email);
+
     return NextResponse.json(
       {
         message: "Profile updated successfully",
+        token: newToken,
         user: {
           _id: user._id,
           name: user.name,
