@@ -6,14 +6,19 @@ import Product from "@/models/Product";
 import Review from "@/models/Review";
 
 export async function GET(request: NextRequest) {
+  // console.log("🔍 [Profile] === REQUEST RECEIVED ===");
+  // console.log("🔍 [Profile] Request URL:", request.url);
+  // console.log("🔍 [Profile] Request method:", request.method);
+  
   try {
     await connectDB();
 
     const authHeader = request.headers.get("authorization");
-    console.log("🔍 [Profile] Auth header:", authHeader ? "Present" : "Missing");
+    // console.log("🔍 [Profile] Auth header:", authHeader ? "Present" : "Missing");
+    // console.log("🔍 [Profile] Full auth header:", authHeader);
     
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      console.log("❌ [Profile] Invalid auth header format");
+      // console.log("❌ [Profile] Invalid auth header format");
       return NextResponse.json(
         { error: "Authorization token required" },
         { status: 401 }
@@ -21,8 +26,9 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    console.log("🔑 [Profile] Token preview:", token.substring(0, 30) + "...");
-    console.log("🔐 [Profile] JWT_SECRET present:", !!process.env.JWT_SECRET);
+    // console.log("🔑 [Profile] Full token:", token);
+    // console.log("🔐 [Profile] JWT_SECRET exists:", !!process.env.JWT_SECRET);
+    // console.log("🔐 [Profile] JWT_SECRET value:", process.env.JWT_SECRET);
     
     let decoded;
     try {
@@ -31,30 +37,36 @@ export async function GET(request: NextRequest) {
         email?: string;
         temp?: boolean;
       };
-      console.log("✅ [Profile] Token verified successfully");
-      console.log("👤 [Profile] User ID:", decoded.userId);
-      console.log("📧 [Profile] Email:", decoded.email);
-      console.log("⏰ [Profile] Temp flag:", decoded.temp);
+      // console.log("✅ [Profile] Token verified successfully");
+      // console.log("👤 [Profile] Decoded payload:", JSON.stringify(decoded, null, 2));
       
-      // ✅ Temp tokens are allowed for viewing own profile
+      // ✅ CRITICAL: Accept temp tokens
       if (decoded.temp) {
-        console.log("ℹ️ [Profile] Using temporary token (profile incomplete)");
+        console.log("⏰ [Profile] TEMPORARY TOKEN DETECTED - ALLOWING ACCESS");
       }
     } catch (error: any) {
-      console.error("❌ [Profile] Token verification failed:", error.message);
+      // console.error("❌ [Profile] Token verification failed:", error.message);
+      // console.error("❌ [Profile] Error name:", error.name);
+      // console.error("❌ [Profile] Token that failed:", token);
       return NextResponse.json(
         { error: "Invalid or expired token" },
         { status: 401 }
       );
     }
 
+    // console.log("🔍 [Profile] Looking for user:", decoded.userId);
     const user = await User.findById(decoded.userId).select("-password");
+    
     if (!user) {
-      console.error("❌ [Profile] User not found:", decoded.userId);
+      // console.error("❌ [Profile] User not found in database:", decoded.userId);
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    console.log("✅ [Profile] User found:", user.email);
+    // console.log("✅ [Profile] User found:", {
+    //   id: user._id,
+    //   email: user.email,
+    //   name: user.name,
+    // });
 
     // Get stats
     const totalListings = await Product.countDocuments({
@@ -85,7 +97,7 @@ export async function GET(request: NextRequest) {
       rating: Math.round(averageRating * 10) / 10,
     };
 
-    console.log("✅ [Profile] Returning profile data");
+    // console.log("✅ [Profile] Returning profile data with stats:", stats);
 
     return NextResponse.json({
       user: {
@@ -102,8 +114,8 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error("❌ [Profile] Get user profile error:", error.message);
-    console.error("Stack:", error.stack);
+    // console.error("❌ [Profile] FATAL ERROR:", error.message);
+    // console.error("❌ [Profile] Stack trace:", error.stack);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -112,6 +124,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  // console.log("🔍 [Profile PUT] === REQUEST RECEIVED ===");
+  
   try {
     await connectDB();
 
@@ -131,7 +145,7 @@ export async function PUT(request: NextRequest) {
 
     // ✅ Allow temp tokens for profile updates
     if (decoded.temp) {
-      console.log("ℹ️ [Profile] Temporary token updating profile");
+      console.log("⏰ [Profile PUT] Temporary token updating profile - ALLOWED");
     }
 
     const { avatar, bio, location, phoneNumber } = await request.json();
@@ -165,6 +179,8 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // console.log("✅ [Profile PUT] Profile updated successfully");
+
     return NextResponse.json({
       message: "Profile updated successfully",
       user: {
@@ -178,8 +194,8 @@ export async function PUT(request: NextRequest) {
         emailVerified: user.emailVerified,
       },
     });
-  } catch (error) {
-    console.error("Update user profile error:", error);
+  } catch (error: any) {
+    // console.error("❌ [Profile PUT] Error:", error.message);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

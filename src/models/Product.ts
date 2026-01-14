@@ -285,7 +285,7 @@ ProductSchema.virtual("discountPercentage").get(function () {
   return 0;
 });
 
-// ✅ REMOVE PROBLEMATIC PRE-SAVE MIDDLEWARE FOR NOW
+// ✅ REMOVE PROBLEMATIC PRE-SAVE  FOR NOW
 // We'll handle status changes in the application logic instead
 
 // Instance methods
